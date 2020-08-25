@@ -7,9 +7,11 @@ import (
 )
 
 type Job struct {
-	File   string
-	TaskID int
-	Batch  string
+	File           string
+	TaskID         int
+	Batch          string
+	ContainerImage string
+	Namespace      string
 }
 
 // A buffered channel that we can send work requests on.

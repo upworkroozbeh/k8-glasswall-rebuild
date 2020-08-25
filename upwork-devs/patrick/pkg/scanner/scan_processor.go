@@ -6,8 +6,10 @@ import (
 )
 
 type ScanProcessor struct {
-	Batch  string
-	Folder string
+	Batch          string
+	Folder         string
+	ContainerImage string // Image containing scan tool - https://github.com/filetrust/Glasswall-Rebuild-SDK-Evaluation
+	Namespace      string // the namespace where the pods will be created
 }
 
 func (s *ScanProcessor) ScanFiles() {
@@ -21,7 +23,7 @@ func (s *ScanProcessor) ScanFiles() {
 	for _, f := range files {
 		if !f.IsDir() {
 			log.Println("File found : " + f.Name())
-			job := Job{File: f.Name(), TaskID: i, Batch: s.Batch}
+			job := Job{File: f.Name(), TaskID: i, Batch: s.Batch, ContainerImage: s.ContainerImage, Namespace: s.Namespace}
 			i = i + 1
 			JobQueue <- job
 		}

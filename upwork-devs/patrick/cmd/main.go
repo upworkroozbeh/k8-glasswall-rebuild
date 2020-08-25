@@ -26,12 +26,14 @@ func main() {
 	maxQueue := 5
 	maxWorker := 5
 	sourceFolder := "/tmp/files"
+	image := "azopat/gw-rebuild"
+	namespace := "test"
 
 	scanner.JobQueue = make(chan scanner.Job, maxQueue)
 	dispatcher := scanner.NewDispatcher(maxWorker, cl)
 	dispatcher.Run()
 
-	scanProcessor := scanner.ScanProcessor{Folder: sourceFolder, Batch: uuid.New().String()}
+	scanProcessor := scanner.ScanProcessor{Folder: sourceFolder, Batch: uuid.New().String(), ContainerImage: image, Namespace: namespace}
 	scanProcessor.ScanFiles()
 
 	// This is just to keep the pod running for now.

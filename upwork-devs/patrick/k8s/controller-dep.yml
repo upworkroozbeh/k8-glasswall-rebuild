@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gw-controller
+  labels:
+    app: gw-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gw-controller
+  template:
+    metadata:
+      labels:
+        app: gw-controller
+    spec:
+      containers:
+      - name: gw-controller
+        image: azopat/gw-controller

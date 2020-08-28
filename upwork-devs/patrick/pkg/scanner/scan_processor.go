@@ -23,7 +23,7 @@ func (s *ScanProcessor) ScanFiles() {
 	for _, f := range files {
 		if !f.IsDir() {
 			log.Println("File found : " + f.Name())
-			job := Job{File: f.Name(), TaskID: i, Batch: s.Batch, ContainerImage: s.ContainerImage, Namespace: s.Namespace}
+			job := Job{Filename: f.Name(), TaskID: i, Batch: s.Batch, ContainerImage: s.ContainerImage, Namespace: s.Namespace}
 			i = i + 1
 			JobQueue <- job
 		}

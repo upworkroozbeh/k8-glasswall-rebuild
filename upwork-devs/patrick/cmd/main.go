@@ -16,7 +16,7 @@ const ()
 func main() {
 
 	// Get a kubernetes client
-	cl, err := client.New(config.GetConfigOrDie(), client.Options{})
+	k8sclient, err := client.New(config.GetConfigOrDie(), client.Options{})
 	if err != nil {
 		log.Println("config not found, exiting")
 		os.Exit(1)
@@ -25,14 +25,26 @@ func main() {
 	// This should be injected as env variables, represent amount of simultaneaus job
 	maxQueue := 5
 	maxWorker := 5
-	sourceFolder := "/tmp/files"
+
+	// Shared volume folder root is /data and in contains a folder src-files where the source files should be copied
+	sourceFolder := "/data/src-files"
+	processingFolder := "/data/processing-files"
+	outputFolder := "/data/processed-files"
 	image := "azopat/gw-rebuild"
 	namespace := "test"
+	storageAccessKey := "minio"
+	storageSecretKey := "minio123"
+	storageBucket := "glasswall"
+	storageEndpoint := "http://minio.default.svc.cluster.local:9000"
 
+	processSettings := &scanner.ProcessSettings{SourceFolder: sourceFolder, ProcessingFolder: processingFolder, ProcessPodImage: image, ProcessPodNamespace: namespace, OutputFolder: outputFolder, StorageAccessKey: storageAccessKey, StorageSecretKey: storageSecretKey, StorageBucket: storageBucket, StorageEndpoint: storageEndpoint}
+
+	// Workers initialization
 	scanner.JobQueue = make(chan scanner.Job, maxQueue)
-	dispatcher := scanner.NewDispatcher(maxWorker, cl)
+	dispatcher := scanner.NewDispatcher(maxWorker, k8sclient, processSettings)
 	dispatcher.Run()
 
+	// Starting a scan
 	scanProcessor := scanner.ScanProcessor{Folder: sourceFolder, Batch: uuid.New().String(), ContainerImage: image, Namespace: namespace}
 	scanProcessor.ScanFiles()
 

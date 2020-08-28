@@ -7,7 +7,7 @@ import (
 )
 
 type Job struct {
-	File           string
+	Filename       string
 	TaskID         int
 	Batch          string
 	ContainerImage string
@@ -16,6 +16,7 @@ type Job struct {
 
 // A buffered channel that we can send work requests on.
 var JobQueue chan Job
+var Ps *ProcessSettings
 var KubeClient client.Client
 
 // Worker represents the worker that executes the job
@@ -48,7 +49,7 @@ func (w Worker) Start() {
 			select {
 			case job := <-w.JobChannel:
 				// we have received a work request.
-				job.processFile(KubeClient)
+				job.processFile(KubeClient, Ps)
 
 			case <-w.quit:
 				// we have received a signal to stop

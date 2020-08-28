@@ -1,10 +1,8 @@
 # Glasswall Rebuild
 
-Achitecture design is available in design.png file.
+## Achitecture overview
 
-For now the github images were tweaked to include the files. But the target is to access it from a shared volume - To be discussed.
-
-Tested on a kubernetes env. Some logs bellow
+![Glasswall Rebuild architecture overview](architecture.png)
 
 Pod List
 ----------

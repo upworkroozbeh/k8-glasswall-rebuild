@@ -3,8 +3,9 @@ package scanner
 import (
 	"context"
 	"log"
+	"os"
+	"path/filepath"
 	"strconv"
-	"strings"
 
 	kcorev1 "k8s.io/api/core/v1"
 	kmetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,41 +15,90 @@ import (
 // This method will run the scan again'st a file encapsulated the job.
 // It starts a pod, passing it the path to the folder where the file is
 // TODO : Copy that file to a location where the pod can access it. we will use minio for a first test
-func (job Job) processFile(kubeClient client.Client) {
+func (job Job) processFile(kubeClient client.Client, processSettings *ProcessSettings) {
 
-	log.Println("Processing file : " + job.File)
-
-	// Env variable
-	base_path_in_pod := "/tmp/files/"
+	log.Println("Processing file : " + job.Filename)
 
 	task_id_str := strconv.Itoa(job.TaskID)
 
-	// This is the location where will be the input file - in future we may copy it to a dedicated folder
-	input_location := base_path_in_pod + "process-file-" + task_id_str
-	input_location = strings.Replace(input_location, "/", "\\/", -1)
+	// This is the location where will be the input file will be copied to, for processing
+	processing_location := filepath.Join(processSettings.ProcessingFolder, job.Batch+"-"+task_id_str)
+	output_location := filepath.Join(processSettings.OutputFolder, job.Batch+"-"+task_id_str)
 
-	// Container which will be added to the pod being created
-	container := &kcorev1.Container{}
-	container.Name = "rebuild"
-	container.Image = job.ContainerImage
-	container.Command = []string{"/bin/sh", "-c"}
-	container.Args = []string{"sed 's/INPUT_LOCATION/" + input_location + "/g' /home/glasswall/Config.ini.tmpl > /home/glasswall/Config.ini; glasswallCLI -config=/home/glasswall/Config.ini -xmlconfig=/home/glasswall/Config.xml && sleep infinity"}
+	// Need to create the processing folder where the file will be moved to
+	os.MkdirAll(processing_location, os.ModePerm)
+	os.MkdirAll(output_location, os.ModePerm)
+
+	from := filepath.Join(processSettings.SourceFolder, job.Filename)
+	to := filepath.Join(processing_location, job.Filename)
+
+	//We copy the source file to his processing folder
+	err := moveFileToProcessingFolder(from, to)
+	if err != nil {
+		log.Println("Could not copy the file, worker exiting without processing " + err.Error())
+		return
+	}
 
 	pod := &kcorev1.Pod{
 		ObjectMeta: kmetav1.ObjectMeta{
-			Name:      container.Name + "-" + task_id_str + "-" + job.Batch,
+			Name:      "rebuild-" + task_id_str + "-" + job.Batch,
 			Namespace: job.Namespace,
 		},
 		Spec: kcorev1.PodSpec{
-			Containers: []kcorev1.Container{*container},
-			//Containers: []kcorev1.Container{{Name: "rebuild", Image: "azopat/gw-rebuild", Command: []string{"/bin/sh", "-c"}, Args: []string{"sed 's/INPUT_LOCATION/" + input_location + "/g' /home/glasswall/Config.ini.tmpl > /home/glasswall/Config.ini; glasswallCLI -config=/home/glasswall/Config.ini -xmlconfig=/home/glasswall/Config.xml && sleep infinity"}}},
+			Volumes: []kcorev1.Volume{
+				{
+					Name: "file-to-process",
+					VolumeSource: kcorev1.VolumeSource{
+						PersistentVolumeClaim: &kcorev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "rebuild-pvc",
+						},
+					},
+				},
+			},
+			InitContainers: []kcorev1.Container{
+				{
+					Name:  "rebuild",
+					Image: "azopat/gw-rebuild",
+					Env: []kcorev1.EnvVar{
+						{Name: "INPUT_LOCATION", Value: processing_location},
+						{Name: "OUTPUT_LOCATION", Value: output_location},
+					},
+					VolumeMounts: []kcorev1.VolumeMount{{Name: "file-to-process", MountPath: "/data"}},
+				},
+			},
+			Containers: []kcorev1.Container{
+				{
+					Name:  "upload-to-storage",
+					Image: "azopat/minio",
+					Env: []kcorev1.EnvVar{
+						{Name: "STORAGE_ENDPOINT", Value: processSettings.StorageEndpoint},
+						{Name: "STORAGE_ACCESS_KEY", Value: processSettings.StorageAccessKey},
+						{Name: "STORAGE_SECRET_KEY", Value: processSettings.StorageSecretKey},
+						{Name: "OUTPUT_FOLDER", Value: output_location},
+						{Name: "STORAGE_BUCKET", Value: processSettings.StorageBucket},
+					},
+					VolumeMounts: []kcorev1.VolumeMount{{Name: "file-to-process", MountPath: "/data"}},
+				},
+			},
 			RestartPolicy: kcorev1.RestartPolicyNever,
 		},
 	}
 
-	err := kubeClient.Create(context.Background(), pod)
+	err = kubeClient.Create(context.Background(), pod)
 	if err != nil {
 		log.Println(err.Error())
 	}
+
+}
+
+func moveFileToProcessingFolder(from string, to string) error {
+
+	err := os.Rename(from, to)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 
 }

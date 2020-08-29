@@ -4,6 +4,11 @@
 
 ![Glasswall Rebuild architecture overview](architecture.png)
 
+The worker pod is made of 2 containers :
+
+- Init container rebuilding the file
+- An additionnal container moving the output file to the storage engine
+
 Pod List
 ----------
 ```
@@ -105,8 +110,14 @@ Duration  0hrs  0mins  0secs
 
 
 
-## Next Step
-- Validate which sharing technique will be used ( nfs, s3, gcp persistent disk, etc)
-- Implement the updates
-- Plug CI/CD
+Minio Interface - we see the files processed
+------
+
+![Glasswall Rebuild architecture overview](logs/folder_list.png)
+
+
+![Glasswall Rebuild architecture overview](logs/folder.png)
+
+
+![Glasswall Rebuild architecture overview](logs/processed_file.png)
 

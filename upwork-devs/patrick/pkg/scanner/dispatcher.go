@@ -15,11 +15,26 @@ type Dispatcher struct {
 	WorkerPool chan chan Job
 }
 
+// File processing settings
+type ProcessSettings struct {
+	// A pool of workers channels that are registered with the dispatcher
+	SourceFolder        string // Folder where source files are places
+	ProcessingFolder    string // Folder where files are copied for processing, one folder per file
+	OutputFolder        string // Processed files are places here before being exported to an object store (minio, s3, ...)
+	ProcessPodImage     string // Image used to start the process pod
+	ProcessPodNamespace string // Namespace where those pods will be created
+	StorageAccessKey    string
+	StorageSecretKey    string
+	StorageBucket       string
+	StorageEndpoint     string
+}
+
 //----------------------------------------------
 // Exports
 //----------------------------------------------
-func NewDispatcher(maxWorkers int, kubeClient client.Client) *Dispatcher {
+func NewDispatcher(maxWorkers int, kubeClient client.Client, processSettings *ProcessSettings) *Dispatcher {
 	KubeClient = kubeClient
+	Ps = processSettings
 	pool := make(chan chan Job, maxWorkers)
 	return &Dispatcher{WorkerPool: pool, maxWorkers: maxWorkers}
 }

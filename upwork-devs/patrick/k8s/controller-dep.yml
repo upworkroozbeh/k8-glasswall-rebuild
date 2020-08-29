@@ -17,3 +17,10 @@ spec:
       containers:
       - name: gw-controller
         image: azopat/gw-controller
+        volumeMounts:
+        - mountPath: /data
+          name: src-files
+      volumes:
+      - name: src-files
+        persistentVolumeClaim:
+          claimName: rebuild-pvc
